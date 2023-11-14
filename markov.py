@@ -1,70 +1,143 @@
-"""A Markov chain generator that can tweet random messages."""
+"""Generate Markov text from text files."""
 
+import random
 import sys
-from random import choice
+import discord
+import sys
+import os
 
 
-def open_and_read_file(filenames):
-    """Take list of files. Open them, read them, and return one long string."""
 
-    body = ''
-    for filename in filenames:
-        text_file = open(filename)
-        body = body + text_file.read()
-        text_file.close()
+def open_and_read_file(file_path):
+    """Take file path as string; return text as string.
 
-    return body
+    Takes a string that is a file path, opens the file, and turns
+    the file's contents as one string of text.
+    """
+    
+
+    with open(file_path) as file:
+        data = file.read()
+        # print(data)
+
+    return data
 
 
 def make_chains(text_string):
-    """Take input text as string; return dictionary of Markov chains."""
+    """Take input text as string; return dictionary of Markov chains.
+
+    A chain will be a key that consists of a tuple of (word1, word2)
+    and the value would be a list of the word(s) that follow those two
+    words in the input text.
+
+    For example:
+
+        >>> chains = make_chains('hi there mary hi there juanita')
+
+    Each bigram (except the last) will be a key in chains:
+
+        >>> sorted(chains.keys())
+        [('hi', 'there'), ('mary', 'hi'), ('there', 'mary')]
+
+    Each item in chains is a list of all possible following words:
+
+        >>> chains[('hi', 'there')]
+        ['mary', 'juanita']
+
+        >>> chains[('there','juanita')]
+        [None]
+    """    
 
     chains = {}
+    words = text_string.split()    
 
-    words = text_string.split()
-    for i in range(len(words) - 2):
-        key = (words[i], words[i + 1])
-        value = words[i + 2]
+    for index in range(0, len(words)):  
+              
+        if index < len(words)-2:
+            key_dict = words[index], words[index +1] 
+            value_word = words[index +2]            
 
-        if key not in chains:
-            chains[key] = []
-
-        chains[key].append(value)
+            if key_dict in chains:
+                chains[key_dict].append(value_word)
+            else:
+                chains[key_dict] = [value_word]    
+    
 
     return chains
 
 
+
 def make_text(chains):
-    """Take dictionary of Markov chains; return random text."""
+    """Return text from chains."""
 
-    keys = list(chains.keys())
-    key = choice(keys)
+    words = []
 
-    words = [key[0], key[1]]
-    while key in chains:
-        # Keep looping until we have a key that isn't in the chains
-        # (which would mean it was the end of our original text).
+    chain_as_list = list(chains.keys())     
+    choosen_key = random.choice(chain_as_list)
+    
 
-        # Note that for long texts (like a full book), this might mean
-        # it would run for a very long time.
+    for item in choosen_key:
+        words.append(item)
 
-        word = choice(chains[key])
-        words.append(word)
-        key = (key[1], word)
+    key = choosen_key
 
+
+    producing_text = True
+
+    while producing_text:
+
+        if key not in chain_as_list:
+            producing_text = False           
+
+        else:
+            first_word = (key[1])           
+            second_word = (random.choice(chains[key]))   
+            words.append(second_word)         
+
+            key = (first_word, second_word) 
+            
+        
     return ' '.join(words)
 
 
-# Get the filenames from the user through a command line prompt, ex:
-# python markov.py green-eggs.txt shakespeare.txt
-filenames = sys.argv[1:]
+# input_path = 'green-eggs.txt'
+try:
+    input_path = sys.argv[1]
+except:
+    input_path = 'green-eggs.txt'
 
-if not filenames:
-    print("Please provide a filename on the command line! Ex. python3 markov.py green-eggs.txt")
-    exit(1)
 
-# Open the files and turn them into one long string
-text = open_and_read_file(filenames)
+# Open the file and turn it into one long string
+input_text = open_and_read_file(input_path)
 
 # Get a Markov chain
-chains = make_chains(text)
+chains = make_chains(input_text)
+
+# Produce random text
+random_text = make_text(chains)
+
+print(random_text)
+
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+client = discord.Client(intents=intents)
+
+@client.event
+async def on_ready():
+    print(f'We have logged in as {client.user}')
+
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        return
+    
+    if message:
+        await message.channel.send(chains)
+
+    # if message.content.startswith('$hello'):
+    #     await message.channel.send('Hello!')
+
+client.run(os.environ["DISCORD_TOKEN"])
