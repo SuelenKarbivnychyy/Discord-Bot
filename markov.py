@@ -135,7 +135,7 @@ async def on_message(message):
         return
     
     if message:
-        await message.channel.send(chains)
+        await message.channel.send(random_text)
 
     # if message.content.startswith('$hello'):
     #     await message.channel.send('Hello!')
